@@ -42,8 +42,9 @@ Then open `http://localhost:8000`. On systems where Python is named `python3`, u
 | --- | --- |
 | `index.html` | Semantic dashboard and inline model notes |
 | `simulation.js` | Independent mathematical engine; browser and CommonJS compatible |
+| `i18n.js` | English/Khmer dictionaries, language preference and text updates |
 | `app.js` | Controls, canvas charts, status updates, and exports |
-| `styles.css` | Responsive dark UI; no external fonts or assets |
+| `styles.css` | Responsive dark UI; optional Noto Sans Khmer web font |
 | `EXPLANATION.md` | Theory, complete equations, limits, and primary-source references |
 | `tests/simulation.test.cjs` | Determinism, physical constraints, drift, interventions, and export tests |
 | `scripts/build.py` | Standard-library staging and standalone packaging |
@@ -74,7 +75,8 @@ Node.js 24 and Python 3.10+ are development/CI tools only. The running website d
 ```bash
 node --check simulation.js
 node --check app.js
-node --test tests/simulation.test.cjs
+node --check i18n.js
+node --test tests/*.test.cjs
 python scripts/build.py
 ```
 
@@ -123,7 +125,7 @@ Official workflow guidance: [GitHub custom Pages workflows](https://docs.github.
 
 ## Architecture and maintenance
 
-The engine has no DOM access and can be tested without a browser. UI code uses local resources and `textContent` for model text, with no evaluation of user-supplied code or untrusted HTML. Runtime exports are generated in memory with Blob URLs and revoked after download. There is no persistent state: reloading initializes defaults. Downloads remain on the user's device until they choose to share them.
+The engine has no DOM access and can be tested without a browser. UI code uses local program resources, an optional external web font, and `textContent` for model text, with no evaluation of user-supplied code or untrusted HTML. Runtime exports are generated in memory with Blob URLs and revoked after download. Model state is not persisted: reloading initializes defaults. The language preference alone is saved in local storage when available. Downloads remain on the user's device until they choose to share them.
 
 Constants and thresholds live in `simulation.js`; update the matching equations in `EXPLANATION.md` whenever changing them. The GitHub workflow uses official action major-version tags for maintainability. Teams requiring immutable action revisions can replace those tags with reviewed commit SHAs.
 
@@ -132,3 +134,26 @@ No formal accessibility certification or exhaustive cross-browser compatibility 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## English / Khmer dashboard
+
+Choose **EN** or **ខ្មែរ** in the navigation bar. The switch updates dashboard text,
+metric descriptions, warning states, event logs, chart descriptions, domain names,
+and screen reader announcements without resetting or advancing the model. Your
+choice is remembered in local storage when the browser permits it. The default is
+English; blocked storage does not prevent switching.
+
+`i18n.js` contains the complete translation dictionaries and named interpolation.
+Static labels use `data-i18n`; accessible names and metadata use
+`data-i18n-aria-label` and `data-i18n-content`. `app.js` listens for `i18n:change`
+and refreshes presentation from the existing snapshot. Engine events retain stable
+translation keys alongside English messages. Export identifiers, scientific units,
+and numerical precision remain independent of the selected language.
+
+Noto Sans Khmer is loaded from Google Fonts when a connection is available. System
+fonts provide an offline fallback. Google Fonts is an optional external request;
+no account or analytics are used. The theoretical paper and repository documentation
+remain in English. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for update instructions.
+
+Validate the full suite with `node --test tests/*.test.cjs`. Run
+`python3 scripts/build.py` to stage the Pages site and a single-file dashboard.

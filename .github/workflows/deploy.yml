@@ -32,8 +32,9 @@ jobs:
         run: |
           node --check simulation.js
           node --check app.js
-      - name: Test mathematical model
-        run: node --test tests/simulation.test.cjs
+          node --check i18n.js
+      - name: Test model and translation coverage
+        run: node --test tests/*.test.cjs
       - name: Stage public website
         run: python3 scripts/build.py
       - name: Configure GitHub Pages

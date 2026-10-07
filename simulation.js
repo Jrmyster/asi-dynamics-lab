@@ -10,10 +10,10 @@
   });
   const DEFAULTS = Object.freeze({ compute: 2000, alpha: 0.08, guardrail: 75, nodes: 8, mode: 'exponential' });
   const DOMAINS = Object.freeze([
-    { name: 'Quantum physics', threshold: 8, note: 'Toy threshold: hypothesis search' },
-    { name: 'Synthetic biology', threshold: 30, note: 'Toy threshold: model-based design' },
-    { name: 'Materials discovery', threshold: 100, note: 'Toy threshold: candidate screening' },
-    { name: 'Self-governance', threshold: 300, note: 'Toy threshold: coordination proposals; legitimacy is not implied' }
+    { id: 'quantum', name: 'Quantum physics', threshold: 8, note: 'Toy threshold: hypothesis search' },
+    { id: 'biology', name: 'Synthetic biology', threshold: 30, note: 'Toy threshold: model-based design' },
+    { id: 'materials', name: 'Materials discovery', threshold: 100, note: 'Toy threshold: candidate screening' },
+    { id: 'governance', name: 'Self-governance', threshold: 300, note: 'Toy threshold: coordination proposals; legitimacy is not implied' }
   ]);
   function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
   function number(v, fallback, min, max) { return clamp(Number.isFinite(Number(v)) ? Number(v) : fallback, min, max); }
@@ -40,11 +40,11 @@
       const random = rng(CONSTANTS.seed);
       this.resilience = Array.from({ length: 100 }, () => 0.85 + 0.3 * random());
       this.alignments = Array.from({ length: 100 }, () => 0.72 + 0.24 * this.params.guardrail / 100);
-      this.event('Scenario initialized. Capability is normalized to 1×.', 'info');
+      this.event('Scenario initialized. Capability is normalized to 1×.', 'info', 'event.initialized');
       this.record(); return this.snapshot();
     }
-    event(message, kind = 'info') {
-      this.events.unshift({ time: this.time, message, kind });
+    event(message, kind = 'info', key = '', params = {}) {
+      this.events.unshift({ time: this.time, message, kind, key, params: { ...params } });
       if (this.events.length > CONSTANTS.maxEvents) this.events.pop();
     }
     update(p) {
@@ -52,26 +52,26 @@
       if (JSON.stringify(next) === JSON.stringify(old)) return this.snapshot();
       this.params = next;
       this.actions.push({ tick: this.tick, type: 'parameters', params: { ...next } });
-      this.event('Parameters updated; existing state is retained. Reset to compare initial conditions.');
+      this.event('Parameters updated; existing state is retained. Reset to compare initial conditions.', 'info', 'event.parameters');
       this.checkDomains(); this.record(); return this.snapshot();
     }
     injectSafetyPatch() {
       this.patch = 1;
       this.alignments = this.alignments.map(a => clamp(a + 0.12, 0, 1));
       this.actions.push({ tick: this.tick, type: 'safety-patch' });
-      this.event('Safety patch: +12 stability points; temporary repair decays over 8 model hours.', 'patch');
+      this.event('Safety patch: +12 stability points; temporary repair decays over 8 model hours.', 'patch', 'event.patch');
       this.record(); return this.snapshot();
     }
     scaleCompute() {
       const before = this.params.compute;
       this.update({ compute: Math.min(1e6, before * 2) });
-      this.event(before === this.params.compute ? 'Compute allocation is already at the input ceiling.' : 'Compute allocation doubled; facility power budget still applies.', 'compute');
+      this.event(before === this.params.compute ? 'Compute allocation is already at the input ceiling.' : 'Compute allocation doubled; facility power budget still applies.', 'compute', before === this.params.compute ? 'event.computeCeiling' : 'event.compute');
       this.record(); return this.snapshot();
     }
     triggerRecursiveLoop() {
       this.loop = Math.min(3, this.loop + 0.6);
       this.actions.push({ tick: this.tick, type: 'recursive-loop' });
-      this.event('Recursive loop: temporary learning multiplier increased; decay time is 6 model hours.', 'loop');
+      this.event('Recursive loop: temporary learning multiplier increased; decay time is 6 model hours.', 'loop', 'event.loop');
       this.record(); return this.snapshot();
     }
     resources() {
@@ -120,13 +120,13 @@
       this.tick++; this.time = this.tick * dt;
       this.loop *= Math.exp(-dt / 6); this.patch *= Math.exp(-dt / 8);
       this.checkDomains(); this.record();
-      if (this.tick === CONSTANTS.horizon / dt) this.event('120-hour model horizon reached. Reset to start another scenario.');
+      if (this.tick === CONSTANTS.horizon / dt) this.event('120-hour model horizon reached. Reset to start another scenario.', 'info', 'event.horizon');
     }
     checkDomains() {
       const capability = Math.exp(this.logs[this.params.mode]);
       for (const d of DOMAINS) if (capability >= d.threshold && !this.achieved.has(d.name)) {
         this.achieved.set(d.name, { time: this.time, mode: this.params.mode });
-        this.event(`${d.name}: illustrative ${d.threshold}× threshold crossed. No scientific discovery has occurred.`, 'domain');
+        this.event(`${d.name}: illustrative ${d.threshold}× threshold crossed. No scientific discovery has occurred.`, 'domain', 'event.domain', { domain: d.id, threshold: d.threshold });
       }
     }
     snapshot() {
