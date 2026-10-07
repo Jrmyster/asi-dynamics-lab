@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b101c">
+  <meta name="description" content="Explore theoretical ASI growth, alignment drift, coordination, and physical resource limits in a transparent interactive model.">
+  <title>ASI Dynamics Lab · Intelligence under constraints</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b101c'/%3E%3Cpath d='M14 45 32 14 50 45M23 33h18' fill='none' stroke='%236adbd0' stroke-width='5'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script src="simulation.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#dashboard">Skip to simulation</a>
+  <header class="site-header">
+    <a class="brand" href="./index.html" aria-label="ASI Dynamics Lab home"><span class="brand-icon" aria-hidden="true">A</span><span>ASI <strong>DYNAMICS LAB</strong></span></a>
+    <nav aria-label="Main navigation"><a href="#dashboard" class="active">Simulation</a><a href="#theory">Model notes</a><a href="EXPLANATION.md">Theory paper ↗</a></nav>
+    <span class="version">MODEL 01 / LOCAL</span>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <div><p class="eyebrow"><span class="dot"></span> A SYSTEMS THINKING SANDBOX</p><h1 id="page-title">Intelligence under <em>constraints.</em></h1><p class="intro-copy">Explore the feedback between capability, control, and the physical world.</p></div>
+      <div class="model-badge"><span class="badge-icon" aria-hidden="true">◇</span><div><strong>Theoretical model</strong><p>Scenarios, not predictions.<br>No real AI runs here.</p></div></div>
+    </section>
+    <div class="workspace" id="dashboard">
+      <aside class="panel controls" aria-labelledby="controls-title">
+        <div class="panel-heading"><h2 id="controls-title">Initial conditions</h2><span class="micro">01—04</span></div>
+        <p class="muted small">Controls apply live. Reset starts a fresh comparison with your current values.</p>
+        <div class="control"><label for="compute">Compute allocation <span class="unit">TFLOPS</span></label><div class="number-field"><input id="compute" type="number" min="1" max="1000000" step="1" value="2000" aria-describedby="compute-help"><span>TFLOPS</span></div><p id="compute-help">Total cluster allocation, shared across all nodes. Range: 1–1,000,000.</p></div>
+        <div class="control"><label for="alpha">Recursive improvement <output id="alpha-value" for="alpha">0.080</output></label><input id="alpha" type="range" min="0" max="0.3" step="0.005" value="0.08"><div class="range-labels"><span>0.000</span><span>α / model hour</span><span>0.300</span></div></div>
+        <div class="control"><label for="guardrail">Guardrail strength <output id="guardrail-value" for="guardrail">75%</output></label><input id="guardrail" type="range" min="0" max="100" step="1" value="75"><div class="range-labels"><span>0%</span><span>assumed efficacy</span><span>100%</span></div></div>
+        <div class="control"><label for="nodes">Agent nodes <output id="nodes-value" for="nodes">8</output></label><input id="nodes" type="range" min="1" max="100" step="1" value="8"><div class="range-labels"><span>1</span><span>shared compute</span><span>100</span></div></div>
+        <div class="control"><label for="mode">Active growth hypothesis</label><select id="mode"><option value="sublinear">Sub-linear · diminishing returns</option><option value="exponential" selected>Exponential · constant returns</option><option value="superexponential">Super-exponential · feedback</option></select><p>Alignment and domain milestones follow this curve.</p></div>
+        <div class="divider"></div>
+        <label for="preset" class="small muted">LOAD A SCENARIO · RESETS STATE</label><select id="preset"><option value="custom">Custom conditions</option><option value="balanced">Measured expansion</option><option value="runaway">Rapid feedback / weak control</option><option value="constrained">Power-constrained cluster</option></select>
+        <div class="actions"><button id="patch" class="action-button"><span aria-hidden="true">⊕</span> Inject Safety Patch</button><button id="scale" class="action-button"><span aria-hidden="true">↗</span> Scale Compute Cluster</button><button id="loop" class="action-button"><span aria-hidden="true">⟳</span> Trigger Recursive Loop</button></div>
+        <p class="footnote">Interventions change model state only. A patch cannot certify real-world alignment.</p>
+      </aside>
+      <section class="results" aria-label="Simulation results">
+        <div class="transport"><div class="clock"><span class="dot" id="run-dot"></span><span id="run-state">PAUSED</span><span class="clock-divider">/</span><strong id="time">0.0</strong><span>MODEL HOURS</span></div><div class="transport-buttons"><button id="play" class="primary">Run simulation</button><button id="step">+1 hour</button><button id="reset" aria-label="Reset simulation">Reset</button><button id="export">Export CSV</button><button id="json" aria-label="Export complete scenario as JSON">JSON</button></div></div>
+        <div class="metrics">
+          <article class="metric"><p>CAPABILITY INDEX</p><strong id="capability">1.00×</strong><span id="capability-detail">Exponential hypothesis</span></article>
+          <article class="metric"><p>ALIGNMENT STABILITY</p><strong id="alignment">90.0<span class="metric-unit"> / 100</span></strong><span id="status" class="status stable">Stable · toy index</span></article>
+          <article class="metric"><p>EFFECTIVE COMPUTE</p><strong id="effective">2,000</strong><span id="compute-detail">TFLOPS · no throttling</span></article>
+          <article class="metric"><p>ENERGY CONSUMED</p><strong id="energy">0.0 <span class="metric-unit">kWh</span></strong><span>Integrated facility demand</span></article>
+        </div>
+        <div class="chart-grid">
+          <article class="panel growth-panel"><div class="panel-heading"><div><p class="eyebrow">CAPABILITY TRAJECTORIES</p><h2>Three hypotheses. One constraint.</h2></div><span class="pill">LOG SCALE</span></div><div class="legend"><span class="cyan">● Sub-linear</span><span class="violet">● Exponential</span><span class="orange">● Super-exponential</span></div><div class="chart-wrap"><canvas id="growth-chart" role="img" aria-label="Capability chart. Current values are in the comparison table below."></canvas></div><table class="curve-table"><caption class="sr-only">Current capability multipliers</caption><thead><tr><th>Hypothesis</th><th>Sub-linear</th><th>Exponential</th><th>Super-exponential</th></tr></thead><tbody><tr><th>Current index</th><td id="sub-value">1.00×</td><td id="exp-value">1.00×</td><td id="super-value">1.00×</td></tr></tbody></table><p class="chart-note" id="ceiling-note">Index normalized to 1× at initialization. Dashed lines mark illustrative domain thresholds.</p></article>
+          <article class="panel alignment-panel"><div class="panel-heading"><div><p class="eyebrow">CONTROL & DRIFT</p><h2>Alignment stability</h2></div><span class="micro">0—100</span></div><div class="chart-wrap compact"><canvas id="alignment-chart" role="img" aria-label="Mean and weakest node stability over model hours. Current values appear below."></canvas></div><div class="alignment-summary"><div><span>Weakest node</span><strong id="weakest">90.0 / 100</strong></div><div><span>Patch activity</span><strong id="patch-value">0%</strong></div></div><p class="warning stable" id="warning" role="status" aria-live="polite">Above the model’s 70-point threshold. This is not a safety guarantee.</p></article>
+        </div>
+        <div class="bottom-grid">
+          <article class="panel"><div class="panel-heading"><div><p class="eyebrow">PHYSICAL BUDGET</p><h2>Power & thermodynamics</h2></div><span class="pill">300 K</span></div><div class="chart-wrap power"><canvas id="power-chart" role="img" aria-label="Facility power use compared with the 250 kilowatt budget; current demand shown below."></canvas></div><dl class="resource-list"><div><dt>Facility demand / budget</dt><dd id="power">80.0 / 250 kW</dd></div><div><dt>Requested facility power</dt><dd id="requested">80.0 kW</dd></div><div><dt>Bit-erasure floor (assumed)</dt><dd id="landauer">0 W</dd></div><div><dt>IT power / erasure floor</dt><dd id="gap">0×</dd></div></dl><p class="footnote">30 GFLOPS/W · PUE 1.2 · 64 erased bits/FLOP assumed. Landauer’s bound is per erased bit; it is not a FLOP limit. Hardware, data and experiments also constrain progress.</p></article>
+          <article class="panel"><div class="panel-heading"><div><p class="eyebrow">DISTRIBUTED SYSTEM</p><h2>Agent coordination</h2></div><span class="pill" id="node-pill">8 NODES</span></div><div class="network" id="network" aria-hidden="true"></div><dl class="resource-list"><div><dt>Coordination efficiency</dt><dd id="coordination">85%</dd></div><div><dt>Potential communication links</dt><dd id="links">28</dd></div><div><dt>TFLOPS per node</dt><dd id="per-node">250</dd></div></dl><p class="footnote">An aggregate coordination proxy, with seeded node sensitivity. Nodes do not reason, negotiate, compete, or send messages.</p></article>
+          <article class="panel domains-panel"><div class="panel-heading"><div><p class="eyebrow">ILLUSTRATIVE MILESTONES</p><h2>Domain breakthroughs</h2></div></div><div id="domains"></div><p class="footnote">Named thresholds are arbitrary teaching markers. Crossing them produces no discovery, biological design, or governance authority.</p></article>
+        </div>
+        <article class="panel event-panel"><div class="panel-heading"><h2>Intervention & milestone log</h2><span class="micro" id="event-count">1 EVENT</span></div><ol id="events" aria-label="Most recent simulation events"></ol><p id="announcement" class="sr-only" role="status" aria-live="polite"></p></article>
+      </section>
+    </div>
+    <section class="theory" id="theory" aria-labelledby="theory-title"><div><p class="eyebrow">READ THE ASSUMPTIONS</p><h2 id="theory-title">A model is a question,<br>not a prophecy.</h2><p>This lab asks how chosen feedback rules interact. It does not measure intelligence, predict ASI arrival, or prove alignment impossible.</p><a href="EXPLANATION.md">Read the full theoretical breakdown ↗</a></div><div class="theory-details"><details open><summary>What actually grows?</summary><p>A dimensionless capability index K starts at 1. The three rules are dK/dt = r√K, rK, and rK¹·³⁵. Compute enters r through an assumed 0.28 exponent. These are invented scenario equations, not fitted scaling laws. A rate ceiling and a 10¹² index ceiling bound the simulation.</p></details><details><summary>How is alignment represented?</summary><p>Each node has a synthetic stability state. Guardrails and patches provide repair, while growth, compute, and coordination add pressure. Strong guardrails reduce drift in this model because we explicitly assume they do. The index is neither a probability of safety nor a validated measurement.</p></details><details><summary>What does “multi-agent” mean here?</summary><p>Total compute is shared. A diversity factor and communication overhead alter learning, while seeded node sensitivities produce different drift. This is a system-dynamics proxy, not a simulation of intelligent agents.</p></details><details><summary>What can you learn?</summary><p>Compare feedback hypotheses, change one assumption at a time, and export trajectories. Look for sensitivity and bottlenecks. Real evaluations require operational tasks, robust measurements, empirical calibration, and independent oversight.</p></details></div></section>
+  </main>
+  <footer><span>ASI DYNAMICS LAB <span class="muted">/ Version 1.0</span></span><span>Deterministic · offline · no accounts or telemetry</span><a href="README.md">Repository guide ↗</a></footer>
+  <noscript><div class="noscript">JavaScript is required to run the simulation. Enable it locally; no network connection is needed.</div></noscript>
+</body>
+</html>
