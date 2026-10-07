@@ -89,3 +89,14 @@ static text or `ASII18n.t('key', { value })` for dynamic output. For a label wit
 nested controls or icons, put the attribute on its text span to preserve the children.
 Translate accessible names with `data-i18n-aria-label`. Keep interpolation names
 identical in both languages. Run the full tests before committing.
+
+
+## Beginner experience (version 1.2)
+
+The current dashboard introduces ASI, offers scenario cards, and presents everyday
+controls, three key results and one chart. Optional technical details are under
+**Explore the model**. The guided experiment pauses at observation points and
+preserves its step when the language changes. Computing allocation can be set
+with the qualitative slider or the synchronized exact input in Advanced settings.
+Model equations and export/replay behavior remain unchanged. Both dictionaries
+include the beginner instructions, live explanations and imagined milestone labels.

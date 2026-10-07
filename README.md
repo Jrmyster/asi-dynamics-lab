@@ -25,7 +25,7 @@ Then open `http://localhost:8000`. On systems where Python is named `python3`, u
 - Total compute allocation: 1–1,000,000 TFLOPS, shared across 1–100 nodes.
 - Recursive improvement coefficient α: 0–0.3 per model hour.
 - Guardrail strength: 0–100%, with explicit assumed control costs and benefits.
-- Three capability trajectories displayed together on a logarithmic chart.
+- One beginner chart following the selected growth story, with three numerical trajectories compared under Explore the model.
 - Selectable active hypothesis for node drift and illustrative domain milestones.
 - Mean and weakest-node stability, with 70-point and 40-point warning thresholds.
 - Requested versus effective compute, power throttling, cumulative kWh, and an explicitly conditional bit-erasure lower bound.
@@ -157,3 +157,32 @@ remain in English. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for update instruc
 
 Validate the full suite with `node --test tests/*.test.cjs`. Run
 `python3 scripts/build.py` to stage the Pages site and a single-file dashboard.
+
+
+## Guided beginner experience
+
+The first screen explains ASI and offers **Careful Development**, **Rapid Expansion**,
+and **Limited Resources** scenario cards. Scenario selection starts a fresh,
+paused experiment. The everyday controls use qualitative levels, while **Explore
+the model** contains exact numerical settings, growth assumptions, comparison
+values, energy/coordination details, imagined milestones, the event log and exports.
+The equations, model horizon, replay format and interventions are unchanged.
+
+The computing slider maps logarithmically from 1 to 1,000,000 TFLOPS so visitors
+can explore the full range without entering large numbers. It stays synchronized
+with the exact computing input. Qualitative labels describe the chosen setting,
+not real hardware capability or measured safeguard effectiveness.
+
+**AI Abilities** is the active model's multiplier, **Safeguard Stability** is its
+synthetic mean stability, and **Electricity Use** is current facility power divided
+by the power budget. Plain-language explanations reflect the current score range,
+zero improvement, numerical ceiling and power throttling. The single visible
+chart uses a logarithmic multiplier scale, explained beside it; it represents
+imaginary model progress, not human intelligence.
+
+**Start guided experiment** resets to Careful Development. It asks visitors to
+boost improvement, observe five simulated hours, strengthen safeguards, and
+observe five more hours. Playback pauses at both observation points. The final
+comparison records stability before the boost, immediately after, and at the
+end. Changing language preserves the experiment and its guided step. Choosing a
+scenario or pressing Reset exits the guide. All beginner content is bilingual.
