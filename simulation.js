@@ -3,10 +3,10 @@
   'use strict';
   const MODES = Object.freeze(['sublinear', 'exponential', 'superexponential']);
   const CONSTANTS = Object.freeze({
-    dt: 0.05, horizon: 120, capabilityCeiling: 1e12, maxLogRate: 0.5,
+    dt: 0.05, horizon: 876000, fineWindow: 120, coarseDt: 24, capabilityCeiling: 1e12, maxLogRate: 0.5,
     facilityLimitW: 250000, flopsPerWatt: 3e10, pue: 1.2,
     temperatureK: 300, erasedBitsPerFlop: 64, boltzmann: 1.380649e-23,
-    maxSamples: 2401, maxEvents: 64, seed: 4217
+    maxSamples: 4097, maxEvents: 64, seed: 4217
   });
   const DEFAULTS = Object.freeze({ compute: 2000, alpha: 0.08, guardrail: 75, nodes: 8, mode: 'exponential' });
   const DOMAINS = Object.freeze([
@@ -36,7 +36,7 @@
       this.params = parameters(p); this.initialParams = { ...this.params };
       this.time = 0; this.tick = 0; this.energyKWh = 0; this.loop = 0; this.patch = 0;
       this.logs = { sublinear: 0, exponential: 0, superexponential: 0 };
-      this.history = []; this.events = []; this.actions = []; this.achieved = new Map();
+      this.integrationSchedule = []; this.history = []; this.events = []; this.actions = []; this.achieved = new Map();
       const random = rng(CONSTANTS.seed);
       this.resilience = Array.from({ length: 100 }, () => 0.85 + 0.3 * random());
       this.alignments = Array.from({ length: 100 }, () => 0.72 + 0.24 * this.params.guardrail / 100);
@@ -95,32 +95,51 @@
         c.efficiency * c.diversity * (1 - 0.18 * g) * (1 + this.loop));
     }
     advance(hours = 0.5) {
-      if (!Number.isFinite(hours) || hours < 0 || hours > CONSTANTS.horizon) throw new RangeError('Advance must be between 0 and 120 model hours.');
-      const steps = Math.round(hours / CONSTANTS.dt);
-      for (let i = 0; i < steps && this.tick < CONSTANTS.horizon / CONSTANTS.dt; i++) this.step();
+      if (!Number.isFinite(hours) || hours < 0 || hours > CONSTANTS.horizon) throw new RangeError('Advance exceeds the 100-year model horizon.');
+      const target = Math.min(CONSTANTS.horizon / CONSTANTS.dt, this.tick + Math.round(hours / CONSTANTS.dt));
+      while (this.tick < target) {
+        // Resolve early dynamics and transient interventions; use bounded daily steps later.
+        const fine = this.time < CONSTANTS.fineWindow || this.loop > 1e-6 || this.patch > 1e-6;
+        const stepTicks = Math.min(target - this.tick, Math.round((fine ? CONSTANTS.dt : CONSTANTS.coarseDt) / CONSTANTS.dt));
+        this.step(stepTicks * CONSTANTS.dt);
+      }
       return this.snapshot();
     }
-    step() {
-      const dt = CONSTANTS.dt; const r = this.rate(); const limit = Math.log(CONSTANTS.capabilityCeiling);
+    step(dt = CONSTANTS.dt) {
+      if (!Number.isFinite(dt) || dt <= 0 || dt > CONSTANTS.coarseDt || Math.abs(dt / CONSTANTS.dt - Math.round(dt / CONSTANTS.dt)) > 1e-8) throw new RangeError("Invalid integration step.");
+      if (this.time >= CONSTANTS.horizon) return;
+      dt = Math.min(dt, CONSTANTS.horizon - this.time);
+      const previous = this.integrationSchedule[this.integrationSchedule.length - 1];
+      if (previous && previous.dt === dt) previous.count++; else this.integrationSchedule.push({ dt, count: 1 });
+      const r = this.rate(); const limit = Math.log(CONSTANTS.capabilityCeiling);
       const before = this.logs[this.params.mode];
       // Exact sublinear update (dK/dt = r sqrt(K)); bounded log-space Euler for positive feedback.
       this.logs.sublinear = Math.min(limit, 2 * Math.log(Math.exp(this.logs.sublinear / 2) + r * dt / 2));
       this.logs.exponential = Math.min(limit, this.logs.exponential + Math.min(CONSTANTS.maxLogRate, r) * dt);
-      this.logs.superexponential = Math.min(limit, this.logs.superexponential +
-        Math.min(CONSTANTS.maxLogRate, r * Math.exp(0.35 * this.logs.superexponential)) * dt);
+      if (dt === CONSTANTS.dt) {
+        this.logs.superexponential = Math.min(limit, this.logs.superexponential + Math.min(CONSTANTS.maxLogRate, r * Math.exp(0.35 * this.logs.superexponential)) * dt);
+      } else if (r > 0) {
+        // Exact frozen-rate positive feedback until the log-rate cap, then linear log growth.
+        const start = this.logs.superexponential;
+        const transition = Math.max(start, Math.log(CONSTANTS.maxLogRate / r) / 0.35);
+        const toCap = Math.max(0, (Math.exp(-0.35 * start) - Math.exp(-0.35 * transition)) / (0.35 * r));
+        this.logs.superexponential = Math.min(limit, dt < toCap ? -Math.log(Math.exp(-0.35 * start) - 0.35 * r * dt) / 0.35 : transition + CONSTANTS.maxLogRate * (dt - toCap));
+      }
       const speed = (this.logs[this.params.mode] - before) / dt;
       const resource = this.resources(); const g = this.params.guardrail / 100;
       const pressure = 0.008 + 0.035 * speed + 0.01 * Math.log1p(resource.effectiveCompute / 1000) + 0.01 * Math.log(this.params.nodes);
       const repair = 0.05 * g + 0.08 * this.patch;
       for (let j = 0; j < this.params.nodes; j++) {
         const a = this.alignments[j];
-        this.alignments[j] = clamp(a + dt * (repair * (1 - a) - (1 - 0.88 * g) * pressure * this.resilience[j] * a), 0, 1);
+        const loss = (1 - 0.88 * g) * pressure * this.resilience[j];
+        const total = repair + loss;
+        this.alignments[j] = dt === CONSTANTS.dt ? clamp(a + dt * (repair * (1 - a) - loss * a), 0, 1) : clamp(repair / total + (a - repair / total) * Math.exp(-total * dt), 0, 1);
       }
       this.energyKWh += resource.powerW / 1000 * dt;
-      this.tick++; this.time = this.tick * dt;
+      this.tick += Math.round(dt / CONSTANTS.dt); this.time = this.tick * CONSTANTS.dt;
       this.loop *= Math.exp(-dt / 6); this.patch *= Math.exp(-dt / 8);
       this.checkDomains(); this.record();
-      if (this.tick === CONSTANTS.horizon / dt) this.event('120-hour model horizon reached. Reset to start another scenario.', 'info', 'event.horizon');
+      if (this.time === CONSTANTS.horizon) this.event('100-year model horizon reached. Reset to start another scenario.', 'info', 'event.horizon');
     }
     checkDomains() {
       const capability = Math.exp(this.logs[this.params.mode]);
@@ -150,12 +169,46 @@
         nodes: this.params.nodes, mode: this.params.mode, loop: this.loop, patch: this.patch };
       if (this.history.length && this.history[this.history.length - 1].time === row.time) this.history[this.history.length - 1] = row;
       else this.history.push(row);
-      if (this.history.length > CONSTANTS.maxSamples) this.history.shift();
+      if (this.history.length > CONSTANTS.maxSamples) {
+        // Retain the beginning and current endpoint instead of discarding the early story.
+        const last = this.history[this.history.length - 1];
+        this.history = this.history.filter((_, i) => i % 2 === 0);
+        if (this.history[this.history.length - 1] !== last) this.history.push(last);
+      }
     }
     exportJSON() {
-      return JSON.stringify({ model: 'asi-dynamics-lab', version: 1, constants: CONSTANTS,
+      return JSON.stringify({ model: 'asi-dynamics-lab', version: 2, constants: CONSTANTS, integrationSchedule: this.integrationSchedule,
         initialParams: this.initialParams, finalTick: this.tick, actions: this.actions,
         finalState: this.snapshot(), history: this.history, events: this.events }, null, 2);
+    }
+    static fromJSON(input) {
+      const data = typeof input === 'string' ? JSON.parse(input) : input;
+      if (!data || data.model !== 'asi-dynamics-lab' || ![1, 2].includes(data.version) || !Number.isSafeInteger(data.finalTick) || data.finalTick < 0 || data.finalTick > CONSTANTS.horizon / CONSTANTS.dt || !Array.isArray(data.actions)) throw new RangeError('Invalid replay.');
+      const schedule = data.version === 1 ? [{ dt: CONSTANTS.dt, count: data.finalTick }].filter(group => group.count > 0) : data.integrationSchedule;
+      if (!Array.isArray(schedule) || schedule.length > 100000) throw new RangeError('Invalid integration schedule.');
+      let totalTicks = 0;
+      for (const group of schedule) {
+        if (!Number.isSafeInteger(group.count) || group.count < 1 || !Number.isFinite(group.dt) || group.dt < CONSTANTS.dt || group.dt > CONSTANTS.coarseDt || Math.abs(group.dt / CONSTANTS.dt - Math.round(group.dt / CONSTANTS.dt)) > 1e-8) throw new RangeError('Invalid integration schedule.');
+        totalTicks += group.count * Math.round(group.dt / CONSTANTS.dt);
+      }
+      if (totalTicks !== data.finalTick) throw new RangeError('Replay duration mismatch.');
+      let priorTick = 0;
+      for (const action of data.actions) {
+        if (!Number.isSafeInteger(action.tick) || action.tick < priorTick || action.tick > data.finalTick || !['parameters', 'safety-patch', 'recursive-loop'].includes(action.type)) throw new RangeError('Invalid action.');
+        priorTick = action.tick;
+      }
+      const sim = new Simulation(data.initialParams); let index = 0;
+      const apply = () => {
+        while (index < data.actions.length && data.actions[index].tick === sim.tick) {
+          const action = data.actions[index++];
+          if (action.type === 'parameters') sim.update(action.params);
+          if (action.type === 'safety-patch') sim.injectSafetyPatch();
+          if (action.type === 'recursive-loop') sim.triggerRecursiveLoop();
+        }
+        if (index < data.actions.length && data.actions[index].tick < sim.tick) throw new RangeError('Action falls inside an integration step.');
+      };
+      for (const group of schedule) for (let i = 0; i < group.count; i++) { apply(); sim.step(group.dt); }
+      apply(); return sim;
     }
     exportCSV() {
       const keys = Object.keys(this.history[0]);

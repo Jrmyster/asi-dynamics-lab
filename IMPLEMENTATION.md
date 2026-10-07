@@ -100,3 +100,15 @@ preserves its step when the language changes. Computing allocation can be set
 with the qualitative slider or the synchronized exact input in Advanced settings.
 Model equations and export/replay behavior remain unchanged. Both dictionaries
 include the beginner instructions, live explanations and imagined milestone labels.
+
+
+## Extended time (version 1.3)
+
+The maximum is 100 simulated years, with month/year/decade/century span controls
+and hour/day/month/year playback increments. Calendar units use 365-day years.
+The first 120 hours and active patch/loop transients retain fine integration;
+later intervals use bounded steps up to a day and analytical frozen-coefficient
+updates. Sampled history keeps both endpoints and has a 4,097-row bound. JSON
+version 2 records the integration schedule for `Simulation.fromJSON` replay.
+Tests include a full century, zero growth, energy accounting, history retention,
+and exact replay through long intervals and interventions.

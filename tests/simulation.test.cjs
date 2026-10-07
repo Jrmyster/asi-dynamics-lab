@@ -92,7 +92,7 @@ test('milestones record illustrative crossings once and remember the active hypo
   s.reset(); assert.equal(s.achieved.size, 0);
 });
 
-test('extreme conditions remain finite, bounded, ordered, and stop at the horizon', () => {
+test('extreme conditions remain finite, bounded and ordered through the fine window', () => {
   for (const compute of [1, 1e6]) for (const nodes of [1, 100]) for (const guardrail of [0, 100]) {
     const s = new Simulation({ compute, nodes, guardrail, alpha: 0.3, mode: 'superexponential' });
     for (let i = 0; i < 10; i++) s.triggerRecursiveLoop(); s.advance(120); const snap = s.snapshot(); finiteTree(snap);
@@ -101,13 +101,13 @@ test('extreme conditions remain finite, bounded, ordered, and stop at the horizo
     assert.ok(snap.capabilities.sublinear <= snap.capabilities.exponential + 1e-6);
     assert.ok(snap.capabilities.exponential <= snap.capabilities.superexponential + 1e-6);
     snap.nodeAlignments.forEach(a => assert.ok(a >= 0 && a <= 100));
-    const frozen = s.exportJSON(); s.advance(1); assert.equal(s.exportJSON(), frozen);
+    s.advance(1); assert.equal(s.time, 121);
   }
 });
 
 test('invalid time increments are rejected without changing state', () => {
   const s = new Simulation(); const before = s.exportJSON();
-  for (const hours of [-1, NaN, Infinity, 121]) assert.throws(() => s.advance(hours), RangeError);
+  for (const hours of [-1, NaN, Infinity, CONSTANTS.horizon + 1]) assert.throws(() => s.advance(hours), RangeError);
   assert.equal(s.exportJSON(), before);
 });
 

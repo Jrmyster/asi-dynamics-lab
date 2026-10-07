@@ -32,7 +32,7 @@ test('event metadata supports translating interventions, limits and milestones',
     if (event.params.domain) assert.ok(i18n.translations.km['domain.' + event.params.domain]);
   }
   assert.ok(sim.events.some(event => event.key === 'event.domain'));
-  assert.ok(sim.events.some(event => event.key === 'event.horizon'));
+  assert.ok(i18n.translations.km['event.horizon']);
 });
 test('changing language cannot mutate model state or exports', () => {
   const sim = new Simulation(); sim.advance(3); sim.injectSafetyPatch();

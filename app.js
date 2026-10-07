@@ -14,6 +14,17 @@
   let guide = null;
   const scenarios = Object.freeze({ balanced: { ...DEFAULTS }, runaway: { compute: 6000, alpha: 0.16, guardrail: 15, nodes: 40, mode: 'superexponential' }, constrained: { compute: 100000, alpha: 0.08, guardrail: 85, nodes: 64, mode: 'exponential' } });
   const level = (value, low, high) => value < low ? 'low' : value < high ? 'medium' : 'high';
+  const horizon = () => Number($('horizon').value);
+  function duration(hours, compact = false) {
+    if (hours >= 8760) return t(compact ? 'time.axis' : hours === 8760 ? 'time.oneyear' : 'time.years', { value: fmt(hours / 8760) });
+    if (hours >= 24) return t(compact ? 'time.dayaxis' : hours === 24 ? 'time.oneday' : 'time.days', { value: fmt(hours / 24) });
+    return compact ? fmt(hours) + t('hour') : t(hours === 1 ? 'time.onehour' : 'time.hours', { value: fmt(hours) });
+  }
+  function advanceVisible(hours) {
+    let remaining = Math.max(0, horizon() - sim.time);
+    if (guide && [2, 4].includes(guide.phase)) remaining = Math.min(remaining, (guide.tick + Math.round(5 / CONSTANTS.dt) - sim.tick) * CONSTANTS.dt);
+    sim.advance(Math.min(hours, remaining));
+  }
   function syncControls() {
     for (const k of ['compute', 'alpha', 'guardrail', 'nodes', 'mode']) $(k).value = sim.params[k];
     const p = sim.params;
@@ -29,7 +40,7 @@
     $('play').textContent = t(value ? 'pause' : 'run');
     $('play').setAttribute('aria-pressed', String(value));
     $('run-state').textContent = t(value ? 'running' : 'paused'); $('run-dot').classList.toggle('running', value);
-    $('step').disabled = value || sim.time >= CONSTANTS.horizon;
+    $('step').disabled = value || sim.time >= horizon();
   }
   function setRunning(value) { running = value; accumulator = 0; last = 0; playbackText(); }
   function reset(params) {
@@ -48,16 +59,16 @@
   }
   function chart(id, series, maxY, labels, thresholds = []) {
     const surface = canvasContext(id); if (!surface) return;
-    const { ctx, w, h } = surface; const pad = { l: 42, r: 10, t: 12, b: 29 };
+    const { ctx, w, h } = surface; const pad = { l: 42, r: 24, t: 12, b: 29 };
     const pw = w - pad.l - pad.r; const ph = h - pad.t - pad.b;
-    const end = Math.max(12, Math.ceil(sim.time / 12) * 12);
+    const end = Math.max(12, sim.time);
     const x = t => pad.l + t / end * pw; const y = v => pad.t + ph - v / maxY * ph;
     ctx.font = i18n.language === 'km' ? '10px "Noto Sans Khmer", sans-serif' : '9px ui-monospace, monospace'; ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
       const v = maxY * i / 4; ctx.strokeStyle = '#243045'; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(pad.l, y(v)); ctx.lineTo(w - pad.r, y(v)); ctx.stroke();
       ctx.fillStyle = '#8c9ab1'; ctx.textAlign = 'right'; ctx.fillText(labels(v), pad.l - 7, y(v) + 3);
-      const t = end * i / 4; ctx.textAlign = 'center'; ctx.fillText(t.toFixed(0) + i18n.t('hour'), x(t), h - 9);
+      const t = end * i / 4; ctx.textAlign = 'center'; ctx.fillText(end >= 8760 ? i18n.t('time.axis', { value: fmt(t / 8760) }) : end >= 24 ? i18n.t('time.dayaxis', { value: fmt(t / 24) }) : duration(t, true), x(t), h - 9);
     }
     ctx.save(); ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
     for (const line of thresholds) {
@@ -95,7 +106,12 @@
   });
   function render(force = false) {
     const s = sim.snapshot(); const r = s.resources; const c = s.coordination;
-    $('time').textContent = s.time.toFixed(1); $('capability').textContent = mult(s.capabilities[s.params.mode]);
+    $('time').textContent = duration(s.time);
+    $('step').textContent = t('time.advance', { duration: duration(Number($('speed').value)) });
+    $('long-energy').textContent = s.energyKWh >= 1e6 ? fmt(s.energyKWh / 1e6) + ' GWh' : s.energyKWh >= 1000 ? fmt(s.energyKWh / 1000) + ' MWh' : fmt(s.energyKWh) + ' kWh';
+    $('long-limit').textContent = s.ceilingReached ? t('long.ceiling') : '';
+    $('time-finished').textContent = s.time >= horizon() ? t('time.finished') : '';
+    Array.from($('horizon').options).forEach(option => { option.disabled = Number(option.value) < s.time; }); $('capability').textContent = mult(s.capabilities[s.params.mode]);
     $('capability-detail').textContent = modeName(s.params.mode);
     $('alignment').replaceChildren(document.createTextNode(s.alignment.toFixed(1)));
     const unit = document.createElement('span'); unit.className = 'metric-unit'; unit.textContent = ' / 100'; $('alignment').append(unit);
@@ -128,17 +144,17 @@
       const el = domainElements[i]; const name = t('domain.' + d.id);
       el.title.textContent = name; el.note.textContent = t('domain.threshold', { threshold: d.threshold });
       el.bar.value = d.progress; el.bar.setAttribute('aria-label', t('domain.progress', { name }));
-      el.status.textContent = d.achieved ? t('crossed', { time: d.achieved.time.toFixed(1), hour: t('hour') }) : (d.progress * 100).toFixed(0) + '%';
+      el.status.textContent = d.achieved ? t('crossed', { time: duration(d.achieved.time), hour: '' }) : (d.progress * 100).toFixed(0) + '%';
       el.status.title = d.achieved ? t('domain.remembered', { mode: modeName(d.achieved.mode) }) : t('note.' + d.id);
     });
     const signature = i18n.language + JSON.stringify(sim.events);
     if (signature !== eventsSignature) {
-      $('events').replaceChildren(); sim.events.forEach(e => { const li = document.createElement('li'); const time = document.createElement('time'); const message = document.createElement('span'); time.textContent = e.time.toFixed(1) + t('hour'); message.textContent = eventText(e); li.append(time, message); $('events').append(li); });
+      $('events').replaceChildren(); sim.events.forEach(e => { const li = document.createElement('li'); const time = document.createElement('time'); const message = document.createElement('span'); time.textContent = duration(e.time, true); message.textContent = eventText(e); li.append(time, message); $('events').append(li); });
       $('event-count').textContent = t(sim.events.length === 1 ? 'events.one' : 'events.many', { count: sim.events.length }); eventsSignature = signature;
     }
     $('ceiling-note').textContent = t(s.ceilingReached ? 'ceiling' : 'normalized');
     if (force || drawnTick !== s.tick) { drawCharts(s); drawnTick = s.tick; }
-    if (s.time >= CONSTANTS.horizon) { setRunning(false); $('play').disabled = true; $('step').disabled = true; } else { $('play').disabled = false; $('step').disabled = running; }
+    if (s.time >= horizon()) { setRunning(false); $('play').disabled = true; $('step').disabled = true; } else { $('play').disabled = false; $('step').disabled = running; }
   }
   function renderGuide(s) {
     if (guide && (guide.phase === 2 || guide.phase === 4) && s.tick - guide.tick >= Math.round(5 / CONSTANTS.dt)) {
@@ -158,8 +174,10 @@
     sim.update({ compute: Math.round(Math.pow(10, Number($('compute-level').value) / 100 * 6)) });
     $('preset').value = 'custom'; syncControls(); render(true);
   });
-  $('guide-start').addEventListener('click', () => { chooseScenario('balanced'); guide = { phase: 1, tick: sim.tick, before: 0, after: 0 }; render(true); $('loop').focus(); });
+  $('guide-start').addEventListener('click', () => { $('speed').value = '1'; chooseScenario('balanced'); guide = { phase: 1, tick: sim.tick, before: 0, after: 0 }; render(true); $('loop').focus(); });
   document.querySelector('a[href="#theory"]').addEventListener('click', () => { $('advanced').open = true; });
+  $('horizon').addEventListener('change', () => { render(true); });
+  $('speed').addEventListener('change', () => render(true));
   $('advanced').addEventListener('toggle', () => render(true));
   for (const key of ['compute', 'alpha', 'guardrail', 'nodes', 'mode']) {
     $(key).addEventListener(key === 'compute' || key === 'mode' ? 'change' : 'input', () => {
@@ -168,7 +186,7 @@
     });
   }
   $('play').addEventListener('click', () => { setRunning(!running); render(); });
-  $('step').addEventListener('click', () => { sim.advance(1); render(); });
+  $('step').addEventListener('click', () => { advanceVisible(Number($('speed').value)); render(); });
   $('reset').addEventListener('click', () => reset(sim.params));
   for (const [id, method] of [['patch', 'injectSafetyPatch'], ['scale', 'scaleCompute'], ['loop', 'triggerRecursiveLoop']]) $(id).addEventListener('click', () => {
     const before = sim.snapshot().alignment; sim[method]();
@@ -186,7 +204,7 @@
   function frame(timestamp) {
     if (running) {
       if (last) accumulator += Math.min(timestamp - last, 250); last = timestamp;
-      while (accumulator >= 100 && running) { sim.advance(0.5); accumulator -= 100; if (sim.time >= CONSTANTS.horizon) setRunning(false); }
+      while (accumulator >= 100 && running) { advanceVisible(Number($('speed').value) / 2); accumulator -= 100; if (sim.time >= horizon()) setRunning(false); }
       render();
     }
     requestAnimationFrame(frame);

@@ -32,7 +32,7 @@ The engine stores:
 
 | Symbol | Meaning | Unit or range |
 | --- | --- | --- |
-| t | Model time | Abstract hours, 0–120 |
+| t | Model time | Illustrative hours, 0–876,000 (100 × 365-day years) |
 | C | Requested total cluster compute | TFLOPS, 1–10⁶ |
 | α | Baseline improvement coefficient | Per model hour, 0–0.3 |
 | g | Guardrail setting divided by 100 | 0–1 |
@@ -43,9 +43,9 @@ The engine stores:
 | s | Patch activity | 0–1 |
 | E | Cumulative facility energy | kWh |
 
-The public stability score is 100 times the mean A_i over active nodes. It is not a probability of safety. Time is an abstract clock; 120 model hours do not imply that an actual intelligence transition takes five days.
+The public stability score is 100 times the mean A_i over active nodes. It is not a probability of safety. Time is an illustrative clock. Days and 365-day years are display units; they have no calibrated relationship to an actual intelligence transition.
 
-All numbers below are implemented in `simulation.js`. The fixed interval is Δt = 0.05 hours. Requested advances are rounded to the nearest interval. A hard 2,400-tick horizon bounds CPU and history costs. At most 2,401 trajectory states and 64 human-readable messages are retained.
+All numbers below are implemented in `simulation.js`. The base clock interval is 0.05 hours. Requested advances are rounded to that interval. The first 120 hours, or any interval with loop/patch amplitude above 10⁻⁶, use that fine step. Later, bounded coarse steps of up to 24 hours make a 100-year horizon practical. History is compacted by retaining alternating rows, the starting point and the latest endpoint whenever it exceeds 4,097 rows. Thus exported trajectories are sampled, while energy integrates every step. The latest 64 human-readable messages are retained.
 
 ## 4. Compute, facility power, and Landauer's principle
 
@@ -143,7 +143,7 @@ Without a rate bound, a constant-r version has a finite-time mathematical singul
 L_{f,t+\Delta t}=L_{f,t}+\min(0.5, r\exp(0.35L_{f,t}))\Delta t.
 \]
 
-This uses explicit Euler integration in log space. Once the log-rate bound is reached, the curve's instantaneous relative growth no longer accelerates; it is effectively exponential until the index ceiling. All curves are capped at K = 10¹². The dashboard warns when the active curve reaches that ceiling. Interventions also decay discretely, so the fixed interval influences numerical results; this is not a convergence-certified scientific solver.
+Fine steps use explicit Euler integration in log space. Coarse steps hold the learning coefficient constant and integrate positive feedback analytically until the log-rate cap, then advance log capability linearly at the capped rate. Once the log-rate bound is reached, the curve's instantaneous relative growth no longer accelerates; it is effectively exponential until the index ceiling. All curves are capped at K = 10¹². The dashboard warns when the active curve reaches that ceiling. Interventions decay exponentially over the actual step duration. Coarse steps use the mean active log growth over the interval to estimate alignment pressure, then solve the resulting frozen-coefficient linear stability equation exponentially. Coarse-step boundaries can influence results, especially near changing rates and ceilings; this is not a convergence-certified scientific solver.
 
 The simulation stores logarithms to avoid overflow, and plots capability on a log axis. α = 0 keeps capability unchanged even if recursive-loop boosts are injected. Compute scaling alone cannot create improvement when the baseline learning coefficient is zero.
 
@@ -225,7 +225,7 @@ Possible layered interventions include narrowing tool access, staging changes, c
 
 ## 12. Reproducibility, verification, and responsible interpretation
 
-Each scenario is deterministic given its initial parameters and tick-ordered actions. JSON exports include the seed-bearing constants, complete actions, final tick, trajectory history, and final state. Reconstruct a run by advancing to each action's tick, applying the recorded parameter change or named intervention in order, and advancing to the final tick. CSV contains physical units and all controls but cannot preserve multiple same-tick actions. Human-readable events are bounded to the latest 64.
+Each scenario is deterministic given its initial parameters, integration schedule and tick-ordered actions. JSON version 2 includes a run-length encoded schedule of `{dt, count}` groups, complete parameter/patch/loop actions, final tick, sampled trajectory and final state. `Simulation.fromJSON(json)` replays that schedule and applies interventions at their original ticks. Recording the schedule matters because splitting a coarse interval at a different point can change its approximation. Version 1 exports replay using their fixed fine steps. CSV cannot preserve same-tick action order or every internal solver step. Human-readable event messages are bounded to 64 and are explanatory annotations, not the replay source.
 
 Tests verify numerical finiteness at parameter extremes, unit accounting, power throttling, deterministic replay, growth ordering, zero-learning behavior, strong-versus-weak guardrail response, intervention decay, horizon behavior, and exports. These checks establish software behavior relative to its specification. They do not calibrate the model to reality or validate its theoretical assumptions.
 
@@ -242,3 +242,20 @@ For research use, replace arbitrary coefficients with explicit evidence where po
 5. GitHub, *Using custom workflows with GitHub Pages*. [Official documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages). Used for workflow configuration, not ASI theory.
 
 Source records consulted October 7, 2026. All scenario equations and numeric coefficients are original teaching choices for this repository unless identified as a physical constant or principle.
+
+
+## Long-term interpretation
+
+The dashboard spans one month through a century, with ten years selected initially.
+Calendar labels are illustrative, with 365-day years and average months of 730
+hours. They are not dated forecasts. The same invented growth rules, guardrail
+repair coefficients and fixed power budget are carried forward. The model has no
+endogenous hardware construction, technological energy-efficiency improvement,
+population, employment, prices, institutions or scientific validation process.
+
+Exponential and feedback curves may reach the numerical ceiling quickly. A flat
+line thereafter identifies a computational boundary rather than a claim about
+real stagnation. Energy still accumulates and stability can continue evolving.
+Temporary interventions decay instead of remaining effective for decades. The
+long-term panel therefore helps visitors investigate persistence, bottlenecks
+and assumption sensitivity, while its social questions remain discussion prompts.

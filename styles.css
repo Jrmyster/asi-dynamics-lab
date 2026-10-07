@@ -1097,3 +1097,17 @@ footer>span:first-child {
   .advanced-comparison { grid-template-columns:1fr; }
   .beginner-intro .definition { font-size:15px; }
 }
+
+.time-controls { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px; }
+.time-controls label { display:block; font-size:14px; margin-bottom:8px; }
+.time-controls p { grid-column:1/-1; font-size:12px; line-height:1.7; color:var(--muted); margin:0; }
+.clock { flex-wrap:wrap; white-space:normal; }
+.transport { flex-wrap:wrap; }
+.long-panel { margin-bottom:18px; }
+.long-panel p { line-height:1.75; }
+.long-energy { border:1px solid var(--border); border-radius:8px; padding:14px; display:flex; gap:12px; flex-wrap:wrap; justify-content:space-between; }
+.long-energy strong { color:var(--cyan); font-size:22px; }
+#long-limit { color:var(--orange); }
+#time-finished { color:var(--cyan); }
+#events time { overflow-wrap:anywhere; }
+@media(max-width:600px) { .time-controls { grid-template-columns:1fr; } }

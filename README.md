@@ -30,7 +30,7 @@ Then open `http://localhost:8000`. On systems where Python is named `python3`, u
 - Mean and weakest-node stability, with 70-point and 40-point warning thresholds.
 - Requested versus effective compute, power throttling, cumulative kWh, and an explicitly conditional bit-erasure lower bound.
 - Safety patches, compute scaling, and temporary recursive-learning boosts.
-- Three initial-condition presets; pause, step, reset, and a 120-hour stopping horizon.
+- Three initial-condition presets; pause, step, reset, and selectable month-to-century time spans and a 100-year maximum.
 - Seeded, reproducible node sensitivities and timestamped intervention records.
 - CSV trajectories and complete JSON scenario exports, including actions and initial conditions.
 - Responsive dark interface, keyboard controls, focus indicators, screen-reader summaries, and reduced-motion support.
@@ -58,13 +58,13 @@ Every curve starts at capability **K = 1**. Compute, coordination, guardrails, a
 
 The cluster draws power at a fixed assumed efficiency. Allocations exceeding the facility budget are throttled before affecting capability. Total compute is never multiplied by node count. Domain labels are arbitrary threshold annotations; this app performs no science or governance work.
 
-The fixed integration interval is 0.05 model hours. Playback advances 0.5 model hours every 100 milliseconds of visible foreground time, nominally 5 model hours per real second. A hidden tab pauses automatically. Model hours have no calibrated mapping to real ASI development time. The 0.5/hour log-rate ceiling and 10¹² capability ceiling prevent numerical runaway; they are computational modeling choices.
+The engine resolves the first 120 hours and active intervention transients in 0.05-hour steps. Later it uses steps of up to one day with bounded growth and an exponential stability update. Playback advances half of the selected hour/day/month/year increment every 100 milliseconds. One model year is 365 days; a month is one twelfth of that year. A hidden tab pauses automatically. This calendar notation is an illustrative clock, not a calibrated forecast of ASI development. Growth remains capped at 10¹²; a century-long flat curve can therefore reflect the numerical limit rather than actual technological stagnation.
 
 Controls change existing state immediately. **Reset** applies current controls as new initial conditions. Presets reset state. Changing active hypotheses keeps their existing trajectories and node states, so use reset when comparing clean scenarios. All curves share the same exogenous inputs; their plotted trajectories are alternative hypotheses, not three concurrently consuming clusters.
 
 Milestone crossings remain in the run's log even if you later change the active hypothesis. Hover the milestone status to see which hypothesis first crossed it. An achieved status records history, whereas the progress bar reflects the current hypothesis.
 
-Exports are snapshots when clicked. CSV records each fixed-step state; multiple interventions at one tick overwrite that tick's CSV row. JSON preserves the action sequence, so it can reconstruct all interventions with the engine. The on-screen event list retains the latest 64 messages; JSON actions remain complete.
+Exports are snapshots when clicked. History is compacted to at most 4,097 rows while retaining the beginning and current endpoint; CSV is a sampled trajectory, not every integration step. JSON version 2 includes a run-length encoded integration schedule and tick-ordered actions. Use `Simulation.fromJSON(json)` to replay the exact integration path and model state, including long runs and mid-run interventions. Manually advancing only to action ticks may change coarse-step boundaries. Version 1 fixed-step exports remain readable. Human-readable messages retain the latest 64 events.
 
 Read [EXPLANATION.md](EXPLANATION.md) before using the results in a presentation or argument.
 
@@ -166,7 +166,7 @@ and **Limited Resources** scenario cards. Scenario selection starts a fresh,
 paused experiment. The everyday controls use qualitative levels, while **Explore
 the model** contains exact numerical settings, growth assumptions, comparison
 values, energy/coordination details, imagined milestones, the event log and exports.
-The equations, model horizon, replay format and interventions are unchanged.
+The underlying scenario equations and interventions remain available; the current long-term solver and replay format are described above.
 
 The computing slider maps logarithmically from 1 to 1,000,000 TFLOPS so visitors
 can explore the full range without entering large numbers. It stays synchronized
@@ -186,3 +186,19 @@ observe five more hours. Playback pauses at both observation points. The final
 comparison records stability before the boost, immediately after, and at the
 end. Changing language preserves the experiment and its guided step. Choosing a
 scenario or pressing Reset exits the guide. All beginner content is bilingual.
+
+
+## Long-term exploration
+
+The default view spans ten simulated years. Choose one month, one year, ten years
+or a century, then choose hour/day/month/year increments. The Advance button and
+Play use that increment. Reaching the selected span pauses playback; choosing a
+longer span continues without resetting. Spans already behind the current time are
+disabled. The short guided experiment switches to hourly increments and still
+pauses at its five-hour observation points.
+
+The long-term panel shows accumulated kWh/MWh/GWh, explains fading interventions
+and the score ceiling, and asks questions about education, jobs, research and
+access. Those social outcomes are not calculated by the engine. The model carries
+fixed hardware assumptions and invented learning rules into the future; it should
+not be used to predict ASI timelines or century-scale social outcomes.
